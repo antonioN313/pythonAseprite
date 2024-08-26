@@ -17,9 +17,9 @@ OPT_DIR = Path("~/opt").expanduser()
 
 # Debian Dependencies
 debian_prerequests = [
-    "zip", "unzip", "g++", "clang", "libc++-dev", "libc++abi-dev", "cmake",
+    "g++", "clang", "libc++-dev", "libc++abi-dev", "cmake",
     "ninja-build", "libx11-dev", "libxcursor-dev", "libxi-dev", "libgl1-mesa-dev",
-    "libfontconfig1-dev", "curl", "nano"
+    "libfontconfig1-dev"
 ]
 debian_prerequests_libstdc= [
     "libharfbuzz-dev", "libgif-dev", "libjpeg-dev", "libcurl4-openssl-dev",
