@@ -4,11 +4,11 @@ from subprocess import run, CalledProcessError
 from zipfile import ZipFile, BadZipFile
 from requests import get, RequestException
 from pathlib import Path
-from time import sleep
+from re import sub
 
 # Constants
-ASEPRITE_SRC_URL = "https://github.com/aseprite/aseprite/releases/download/v1.3.8.1/Aseprite-v1.3.8.1-Source.zip"
-SKIA_LIB_URL = "https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Linux-Release-x64-libstdc++.zip"
+ASEPRITE_REPO = "aseprite/aseprite"
+SKIA_REPO = "aseprite/skia"
 SRC_DIR = Path("~/src").expanduser()
 ASE_DIR = SRC_DIR / "ase"
 SKIA_DIR = SRC_DIR / "deps/skia"
@@ -57,6 +57,18 @@ def create_directories():
         print(e)
         exit(1)
 
+def get_latest_release_url(repo):
+    try:
+        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+        response = get(api_url)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        latest_release = response.json()
+        return latest_release['zipball_url']  # URL to the source code zip file
+    except RequestException as e:
+        print(f"Failed to fetch latest release from {repo}.")
+        print(e)
+        exit(1)
+
 def download_and_unpack(url, dest):
     """Download and unpack a zip file from a URL."""
     try:
@@ -87,6 +99,24 @@ def set_environment_variables():
         print(e)
         exit(1)
 
+def update_cmake_cache():
+    """Update USE_SHARED_ flags in CMakeCache.txt to ON."""
+    cmake_cache_path = ASE_BUILD_DIR / "CMakeCache.txt"
+    
+    try:
+        with open(cmake_cache_path, 'r') as file:
+            lines = file.readlines()
+        
+        with open(cmake_cache_path, 'w') as file:
+            for line in lines:
+                if line.startswith("USE_SHARED_") and line.strip().endswith("=OFF"):
+                    line = sub(r'=OFF', '=ON', line)
+                file.write(line)
+    except Exception as e:
+        print(f"Failed to update {cmake_cache_path}.")
+        print(e)
+        exit(1)
+
 def build_aseprite():
     """Build the Aseprite application using cmake and ninja."""
     try:
@@ -95,8 +125,6 @@ def build_aseprite():
         cmake_command = [
             "cmake",
             "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-            "-DCMAKE_CXX_FLAGS:STRING=-static-libstdc++",
-            "-DCMAKE_EXE_LINKER_FLAGS:STRING=-static-libstdc++",
             "-DLAF_BACKEND=skia",
             f"-DSKIA_DIR={SKIA_DIR}",
             f"-DSKIA_LIBRARY_DIR={SKIA_DIR / 'out/Release-x64'}",
@@ -104,11 +132,16 @@ def build_aseprite():
             "-G", "Ninja", ".."
         ]
 
+        if environ['CXX'] == 'g++':
+            cmake_command.extend([
+                "-DCMAKE_CXX_FLAGS:STRING=-static-libstdc++",
+                "-DCMAKE_EXE_LINKER_FLAGS:STRING=-static-libstdc++"
+            ])
+
         run_command(cmake_command)
 
-        print("Enable the USE_SHARED_ flags; set their value to ON.")
-        sleep(5)
-        run_command(["nano", "-w", "CMakeCache.txt"])
+        print("Automatically setting USE_SHARED_ flags to ON.")
+        update_cmake_cache()
 
         run_command(["ninja", "aseprite"])
     except Exception as e:
@@ -133,11 +166,11 @@ def main():
 
     # Download & unpack Aseprite source
     chdir(ASE_DIR)
-    download_and_unpack(ASEPRITE_SRC_URL, ASE_DIR)
+    download_and_unpack(get_latest_release_url(ASEPRITE_REPO), ASE_DIR)
 
     # Download & unpack Skia library
     chdir(SKIA_DIR)
-    download_and_unpack(SKIA_LIB_URL, SKIA_DIR)
+    download_and_unpack(get_latest_release_url(SKIA_REPO), SKIA_DIR)
 
     set_environment_variables()
     build_aseprite()
