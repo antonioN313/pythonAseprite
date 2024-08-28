@@ -5,6 +5,11 @@ from zipfile import ZipFile, BadZipFile
 from requests import get, RequestException
 from pathlib import Path
 from re import sub
+from pprint import pprint
+import platform
+import sys
+
+
 
 # Constants
 ASEPRITE_REPO = "aseprite/aseprite"
@@ -63,7 +68,22 @@ def get_latest_release_url(repo):
         response = get(api_url)
         response.raise_for_status()  # Raise an exception for HTTP errors
         latest_release = response.json()
-        return latest_release['zipball_url']  # URL to the source code zip file
+        system = platform.system()
+        archtecture = platform.machine()
+        print(f"System: {system}")
+        print(f"Architecture: {archtecture}")
+        if repo == SKIA_REPO:
+            filenames = [
+                #f"Skia-{system}-Release-{archtecture}-libc++.zip",
+                f"Skia-{system}-Release-{archtecture}-libstdc++.zip"
+            ]
+        else:
+            filenames = [f"Aseprite-{latest_release['tag_name']}-Source.zip"]
+
+        for asset in latest_release['assets']:
+            if asset['name'] in filenames:
+                print(f"Download URL:{asset['browser_download_url']}")
+                return asset['browser_download_url']
     except RequestException as e:
         print(f"Failed to fetch latest release from {repo}.")
         print(e)
