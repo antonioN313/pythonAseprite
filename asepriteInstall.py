@@ -73,6 +73,13 @@ def get_latest_release_url(repo):
         print(f"System: {system}")
         print(f"Architecture: {archtecture}")
         if repo == SKIA_REPO:
+            
+            if system == "Linux" and "64" in archtecture:
+                    archtecture = "x64"
+            elif system == "Linux" and ("arm" in archtecture or "aarch64" in archtecture):
+                archtecture = "arm64"
+            else:
+                archtecture = "x86"
             filenames = [
                 #f"Skia-{system}-Release-{archtecture}-libc++.zip",
                 f"Skia-{system}-Release-{archtecture}-libstdc++.zip"
@@ -84,6 +91,7 @@ def get_latest_release_url(repo):
             if asset['name'] in filenames:
                 print(f"Download URL:{asset['browser_download_url']}")
                 return asset['browser_download_url']
+
     except RequestException as e:
         print(f"Failed to fetch latest release from {repo}.")
         print(e)
