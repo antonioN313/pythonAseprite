@@ -70,16 +70,27 @@ def get_latest_release_url(repo, system, arch):
         latest_release = response.json()
 
         if repo == SKIA_REPO:
-
             if system == "Linux" and "64" in arch:
                 arch = "x64"
             elif system == "Linux" and ("arm" in arch or "aarch64" in arch):
                 arch = "arm64"
             else:
                 arch = "x86"
+            if system == "Windows" and "64" in arch:
+                arch = "x64"
+            else:
+                arch = "x86"
+            if system == "Darwin" and "64" in arch:
+                system = "MacOS"
+                arch = "x64"
+            else:
+                system = "MacOS"
+                arch = "arm64"
             filenames = [
                 # f"Skia-{system}-Release-{archtecture}-libc++.zip",
-                f"Skia-{system}-Release-{arch}-libstdc++.zip"
+                f"Skia-{system}-Release-{arch}-libstdc++.zip",
+                f"Skia-{system}-Release-{arch}.zip",
+
             ]
         else:
             filenames = [f"Aseprite-{latest_release['tag_name']}-Source.zip"]
