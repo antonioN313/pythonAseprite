@@ -10,10 +10,10 @@ from requests import get, RequestException
 # Constants
 ASEPRITE_REPO = "aseprite/aseprite"
 SKIA_REPO = "aseprite/skia"
-SRC_DIR = Path("~/src").expanduser()
-ASE_DIR = SRC_DIR / "ase"
-SKIA_DIR = SRC_DIR / "deps/skia"
-ASE_BUILD_DIR = ASE_DIR / "build"
+LINUX_SRC_DIR = Path("~/src").expanduser()
+ASE_DIR = LINUX_SRC_DIR / "ase"
+SKIA_DIR = LINUX_SRC_DIR / "deps/skia"
+LINUX_ASE_BUILD_DIR = ASE_DIR / "build"
 OPT_DIR = Path("~/opt").expanduser()
 
 # Debian Dependencies
@@ -54,7 +54,7 @@ def install_dependencies():
 def create_directories():
     """Create necessary directories."""
     try:
-        ASE_BUILD_DIR.mkdir(parents=True, exist_ok=True)
+        LINUX_ASE_BUILD_DIR.mkdir(parents=True, exist_ok=True)
         SKIA_DIR.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         print("Failed to create directories.")
@@ -141,7 +141,7 @@ def set_environment_variables():
 
 def update_cmake_cache():
     """Update USE_SHARED_ flags in CMakeCache.txt to ON."""
-    cmake_cache_path = ASE_BUILD_DIR / "CMakeCache.txt"
+    cmake_cache_path = LINUX_ASE_BUILD_DIR / "CMakeCache.txt"
 
     try:
         with open(cmake_cache_path, 'r') as file:
@@ -161,7 +161,7 @@ def update_cmake_cache():
 def build_aseprite():
     """Build the Aseprite application using cmake and ninja."""
     try:
-        chdir(ASE_BUILD_DIR)
+        chdir(LINUX_ASE_BUILD_DIR)
 
         cmake_command = [
             "cmake",
@@ -195,7 +195,7 @@ def install_aseprite():
     """Install Aseprite by moving it to the desired location."""
     try:
         OPT_DIR.mkdir(parents=True, exist_ok=True)
-        move(str(ASE_BUILD_DIR / "bin"), str(OPT_DIR / "aseprite"))
+        move(str(LINUX_ASE_BUILD_DIR / "bin"), str(OPT_DIR / "aseprite"))
         run_command([str(OPT_DIR / "aseprite/aseprite")])
     except (OSError, Error) as e:
         print("Failed to install Aseprite.")
