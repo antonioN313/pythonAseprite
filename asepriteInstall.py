@@ -1,15 +1,11 @@
+import platform
 from os import environ, chdir
+from pathlib import Path
+from re import sub
 from shutil import move, Error
 from subprocess import run, CalledProcessError
 from zipfile import ZipFile, BadZipFile
 from requests import get, RequestException
-from pathlib import Path
-from re import sub
-from pprint import pprint
-import platform
-import sys
-
-
 
 # Constants
 ASEPRITE_REPO = "aseprite/aseprite"
@@ -26,10 +22,11 @@ debian_prerequests = [
     "ninja-build", "libx11-dev", "libxcursor-dev", "libxi-dev", "libgl1-mesa-dev",
     "libfontconfig1-dev"
 ]
-debian_prerequests_libstdc= [
+debian_prerequests_libstdc = [
     "libharfbuzz-dev", "libgif-dev", "libjpeg-dev", "libcurl4-openssl-dev",
     "libtinyxml2-dev", "libpixman-1-dev", "libcmark-dev"
 ]
+
 
 def run_command(command, capture_output=False):
     """Runs a shell command and returns the result."""
@@ -42,15 +39,17 @@ def run_command(command, capture_output=False):
         print(e)
         exit(1)
 
+
 def install_dependencies():
     """Install required dependencies using apt."""
     try:
         run_command(["sudo", "apt", "update"])
-        run_command(["sudo", "apt", "install", "-y"] + debian_prerequests+ debian_prerequests_libstdc)
+        run_command(["sudo", "apt", "install", "-y"] + debian_prerequests + debian_prerequests_libstdc)
     except Exception as e:
         print("Failed to install dependencies.")
         print(e)
         exit(1)
+
 
 def create_directories():
     """Create necessary directories."""
@@ -62,27 +61,25 @@ def create_directories():
         print(e)
         exit(1)
 
-def get_latest_release_url(repo):
+
+def get_latest_release_url(repo, system, arch):
     try:
         api_url = f"https://api.github.com/repos/{repo}/releases/latest"
         response = get(api_url)
         response.raise_for_status()  # Raise an exception for HTTP errors
         latest_release = response.json()
-        system = platform.system()
-        archtecture = platform.machine()
-        print(f"System: {system}")
-        print(f"Architecture: {archtecture}")
+
         if repo == SKIA_REPO:
-            
-            if system == "Linux" and "64" in archtecture:
-                    archtecture = "x64"
-            elif system == "Linux" and ("arm" in archtecture or "aarch64" in archtecture):
-                archtecture = "arm64"
+
+            if system == "Linux" and "64" in arch:
+                arch = "x64"
+            elif system == "Linux" and ("arm" in arch or "aarch64" in arch):
+                arch = "arm64"
             else:
-                archtecture = "x86"
+                arch = "x86"
             filenames = [
-                #f"Skia-{system}-Release-{archtecture}-libc++.zip",
-                f"Skia-{system}-Release-{archtecture}-libstdc++.zip"
+                # f"Skia-{system}-Release-{archtecture}-libc++.zip",
+                f"Skia-{system}-Release-{arch}-libstdc++.zip"
             ]
         else:
             filenames = [f"Aseprite-{latest_release['tag_name']}-Source.zip"]
@@ -97,12 +94,14 @@ def get_latest_release_url(repo):
         print(e)
         exit(1)
 
+
 def download_and_unpack(url, dest):
     """Download and unpack a zip file from a URL."""
+
+    zip_path = dest / url.split("/")[-1]  # Extract file name from URL
     try:
         response = get(url)
         response.raise_for_status()
-        zip_path = dest / url.split("/")[-1]  # Extract file name from URL
         with open(zip_path, 'wb') as f:
             f.write(response.content)
 
@@ -117,6 +116,7 @@ def download_and_unpack(url, dest):
         print(e)
         exit(1)
 
+
 def set_environment_variables():
     """Set environment variables for building."""
     try:
@@ -127,14 +127,15 @@ def set_environment_variables():
         print(e)
         exit(1)
 
+
 def update_cmake_cache():
     """Update USE_SHARED_ flags in CMakeCache.txt to ON."""
     cmake_cache_path = ASE_BUILD_DIR / "CMakeCache.txt"
-    
+
     try:
         with open(cmake_cache_path, 'r') as file:
             lines = file.readlines()
-        
+
         with open(cmake_cache_path, 'w') as file:
             for line in lines:
                 if line.startswith("USE_SHARED_") and line.strip().endswith("=OFF"):
@@ -144,6 +145,7 @@ def update_cmake_cache():
         print(f"Failed to update {cmake_cache_path}.")
         print(e)
         exit(1)
+
 
 def build_aseprite():
     """Build the Aseprite application using cmake and ninja."""
@@ -177,6 +179,7 @@ def build_aseprite():
         print(e)
         exit(1)
 
+
 def install_aseprite():
     """Install Aseprite by moving it to the desired location."""
     try:
@@ -188,21 +191,29 @@ def install_aseprite():
         print(e)
         exit(1)
 
+
 def main():
-    install_dependencies()
+
+    system = platform.system()
+    archtecture = platform.machine()
+    print(platform.system())
+    print(platform.machine())
+
+    install_dependencies(system, archtecture)
     create_directories()
 
     # Download & unpack Aseprite source
     chdir(ASE_DIR)
-    download_and_unpack(get_latest_release_url(ASEPRITE_REPO), ASE_DIR)
+    download_and_unpack(get_latest_release_url(ASEPRITE_REPO, system, archtecture), ASE_DIR)
 
     # Download & unpack Skia library
     chdir(SKIA_DIR)
-    download_and_unpack(get_latest_release_url(SKIA_REPO), SKIA_DIR)
+    download_and_unpack(get_latest_release_url(SKIA_REPO, system, archtecture), SKIA_DIR)
 
     set_environment_variables()
     build_aseprite()
     install_aseprite()
+
 
 if __name__ == "__main__":
     main()
